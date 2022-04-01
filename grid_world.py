@@ -1,0 +1,258 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Mar 31 10:24:20 2022
+
+@author: priya
+"""
+
+import numpy as np 
+import matplotlib.pyplot as plt
+import matplotlib
+import time 
+import pandas as pd 
+import seaborn as sns
+import random
+sns.set()
+
+
+DEFAULT_REWARD = -1 #chnaged this 
+REWARD = 100
+REWARD_LOC = [5, 16, 19]
+PENALTY = -100
+PENALTY_LOC = [8, 17, 30, 34] 
+DST_REWARD = 1000 
+START = 0 
+DST = 35
+
+
+class grid_world():
+    
+    def __init__(self, logger):
+        self.debug_mode = logger
+        self.S = list(range(0,36))
+        self.A = list(range(0,36))
+        self.walls = [(3,4), (3,9), (4,5), (11,17), (17,23), (12,18), (18,24), (30,31), (27,33)]
+        self.legal_moves = self.get_legal_moves()
+        self.R = self.initialize_rewards()
+        self.Q = np.zeros(self.R.shape)
+        print("Grid world initialized!")
+        
+        
+        
+    def get_legal_moves(self):
+        possible_actions = []
+        illegal_moves = [] 
+
+
+        for row in range(0,6):
+            for col in range(0, 6):
+                current = row * 6 + col
+        
+                if col > 0:
+                    left = current - 1
+                    possible_actions.append((current, left))
+                if col < 5:
+                    right = current + 1
+                    possible_actions.append((current, right))
+                if row > 0:
+                    up = current - 6
+                    possible_actions.append((current, up))
+                if row < 5:
+                    down = current + 6
+                    possible_actions.append((current, down))
+        
+        if self.debug_mode: print("# possible moves:", len(possible_actions))
+        
+        
+        for wall in self.walls:
+            illegal_moves.append((wall[0], wall[1]))
+            illegal_moves.append((wall[1], wall[0]))
+            
+        if self.debug_mode: print("# illegal moves:", len(illegal_moves))   
+
+        for illegal_move in illegal_moves:
+            possible_actions.remove(illegal_move)
+
+        if self.debug_mode: 
+            print("# legal moves:", len(possible_actions))
+            print(possible_actions)
+        
+        return possible_actions
+
+
+    def initialize_rewards(self):
+        R = np.empty((len(self.A), len(self.S)))
+        R[:] = np.nan
+        
+        for action in self.legal_moves:    
+            if action[1] in REWARD_LOC: # Rewards
+                R[action[0], action[1]] = REWARD
+            elif action[1] in PENALTY_LOC: # Penalties
+                R[action[0], action[1]] = PENALTY 
+            elif action[1] == DST:  #destination
+                R[action[0], action[1]] = DST_REWARD
+            else:
+                R[action[0], action[1]] = DEFAULT_REWARD
+                
+        return R
+    
+    
+    def reset_Q(self):
+        self.Q = np.zeros(self.R.shape)
+        return 1
+        
+    
+    
+    """
+    Epsilon-Greedy Policy 
+    """
+    def decay_eps_greedy(self, eps, all_actions, best_actions): 
+        if np.random.uniform() > eps:
+            #exploit
+            a = np.random.choice(best_actions)
+        else:
+            #explore
+            a = np.random.choice(all_actions )
+            
+        return a
+    
+    
+    """
+    Softmax Policy 
+    """
+    def softmax(self, current_state, actions, current_step, max_steps):
+        if self.debug_mode:
+            for action in actions:
+                print(f'Q[{current_state},{action}] = {self.Q[current_state,action]}')
+        
+        # As steps increase, T decreases and the probability of selecting 
+        # the best action by Q value increases
+        T = max_steps - current_step
+        probabilities = np.array([self.Q[current_state,a]/T for a in actions])
+        if self.debug_mode: print(f'probabilities = {probabilities}')
+    
+        softmax_probabilities = np.exp(probabilities)/ np.sum(np.exp(probabilities))
+        if self.debug_mode: print(f'softmax_probabilities= {softmax_probabilities}')
+    
+        # choose an action based on these probabilities
+        a = random.choices(actions, weights=softmax_probabilities)
+        
+        return a[0]
+    
+    
+    
+       
+        
+        
+
+    """
+    Q-learning algo 
+    """
+    def run_q_learning(self, num_episodes, steps, alpha, gamma, policy, policy_args = {}):
+        print(policy)
+        time_start = time.time()
+        
+        #reset Q 
+        self.reset_Q()
+        #self.Q = np.zeros(self.R.shape)
+        
+        rewards_per_episode = []
+        steps_per_episode = []
+        found_flag = 0 
+        
+        path = []
+        final_rewards = [] 
+        
+         #set up based on policy 
+        if policy == 'eps_greedy' or policy == 'eps_greedy_decay' :
+            eps_start = policy_args.pop('eps_start')
+            eps_end = policy_args.pop('eps_end')     
+            eps = np.linspace(eps_start, eps_end, steps)
+    
+        for i in range(num_episodes):    
+            # Initialize State
+            s = 0 #np.random.choice(36) #0
+            
+            total_reward = 0
+    
+            if i%100 == 0 and self.debug_mode:
+                print('Running episode {} ....'.format(i))
+                    
+            for step in range(steps):
+                available_actions = np.where(~np.isnan(self.R[s]))[0]
+                q_values = [self.Q[s,a] for a in available_actions]
+                
+                if policy == 'eps_greedy' or policy == 'eps_greedy_decay': 
+                    best_actions = available_actions[np.where(q_values == np.max(q_values))[0]]
+                    if self.debug_mode: print(f"Currently at {s}. best actions: {best_actions}. Step: {step}")
+                
+                    #best_actions_q_values = [Q[s,x] for x in best_actions]
+                    
+                    a = self.decay_eps_greedy(eps[step], available_actions, best_actions)
+                    if self.debug_mode : print(f"choose: {a}")
+                elif policy == 'softmax':
+                    a = self.softmax(s, available_actions, step, steps)
+                
+                r = self.R[s,a]
+                
+                
+                if i == (num_episodes-1):
+                    path.append(a)
+                
+                if a in REWARD_LOC or a == DST  : # Reward/Flag found
+                    if self.debug_mode : print(f"Found reward. Adding {max((r - step),0) }")
+                    total_reward += max((r - step),0)  # Discount reward based on steps
+                    if i == (num_episodes-1):
+                        final_rewards.append(max((r - step),0))
+                else: #penalty or normal step 
+                    total_reward += r
+                    if i == (num_episodes-1):
+                        final_rewards.append(r)
+                    
+                    
+                 
+                
+                if self.debug_mode: print(f"new reward total: {total_reward}")
+                s_old = s
+                s = a 
+    
+                # Q value updating
+                q_updated = self.Q[s_old,a] + alpha * ( r + gamma * np.max(self.Q[s,:]) - self.Q[s_old,a])
+                
+                if self.Q[s_old,a] != q_updated and self.debug_mode:
+                    print(f"Old q value: self.Q[{s_old}, {a}]: { self.Q[s_old,a]}, new Q value: {q_updated}")
+                    
+                self.Q[s_old,a] = q_updated
+    
+                if self.S[s] == DST: # Destination Reached
+                    rewards_per_episode.append(total_reward)
+                    steps_per_episode.append(step)
+                    found_flag += 1 
+                    break
+                elif step == (steps -1): #out of steps
+                    rewards_per_episode.append(total_reward)
+                    steps_per_episode.append(step)
+    
+        print(f"time elapsed for {num_episodes} episodes : {time.time()-time_start} s")
+        print("Path: ", path)
+        print("Rewards: ", final_rewards)
+            
+        return rewards_per_episode, steps_per_episode, found_flag, self.Q
+    
+    
+    def plot_graph(self, df, title, x_label, y_label):
+        sns.set(rc = {'figure.figsize':(15,5)})
+        f = sns.lineplot(data=df)
+        f.set_xlabel(x_label, fontsize = 15)
+        f.set_ylabel(y_label, fontsize = 15)
+        f.set_title(title)
+
+
+
+   
+
+
+        
+                        
+                                
+                        
