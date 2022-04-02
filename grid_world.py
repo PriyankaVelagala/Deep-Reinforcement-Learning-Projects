@@ -14,12 +14,21 @@ import seaborn as sns
 import random
 sns.set()
 
+"""
+Obstacles 
+"""
+BIDIRECTIONAL_WALLS = [(4,5), (18,24), (17,23), (30,31)] 
+ONE_WAY_WALLS = [(7,1), (6, 12) ]
+ONE_WAY_TUNNELS = [(6,30), (7,5)]
 
-DEFAULT_REWARD = -1 #chnaged this 
+"""
+Reward Structure
+"""
+DEFAULT_REWARD = -1 
 REWARD = 100
-REWARD_LOC = [5, 16, 19]
+REWARD_LOC = [5, 13, 16, 32]
 PENALTY = -100
-PENALTY_LOC = [8, 17, 30, 34] 
+PENALTY_LOC = [8, 13, 26, 30, 34] 
 DST_REWARD = 1000 
 START = 0 
 DST = 35
@@ -31,7 +40,7 @@ class grid_world():
         self.debug_mode = logger
         self.S = list(range(0,36))
         self.A = list(range(0,36))
-        self.walls = [(3,4), (3,9), (4,5), (11,17), (17,23), (12,18), (18,24), (30,31), (27,33)]
+        #self.walls =  [(4,5),  (18,24), (17,23), (30,31)] #[(3,4), (3,9), (4,5), (11,17), (17,23), (12,18), (18,24), (30,31), (27,33)]
         self.legal_moves = self.get_legal_moves()
         self.R = self.initialize_rewards()
         self.Q = np.zeros(self.R.shape)
@@ -43,7 +52,7 @@ class grid_world():
         possible_actions = []
         illegal_moves = [] 
 
-
+        #all adjacent locations for each cell 
         for row in range(0,6):
             for col in range(0, 6):
                 current = row * 6 + col
@@ -60,14 +69,22 @@ class grid_world():
                 if row < 5:
                     down = current + 6
                     possible_actions.append((current, down))
+                    
+        #add tunnels 
+        for tunnel in ONE_WAY_TUNNELS:
+            possible_actions.append((tunnel[0], tunnel[1]))
         
-        if self.debug_mode: print("# possible moves:", len(possible_actions))
+        if self.debug_mode: print("# moves:", len(possible_actions))
         
-        
-        for wall in self.walls:
+        #add walls 
+        for wall in BIDIRECTIONAL_WALLS:
             illegal_moves.append((wall[0], wall[1]))
             illegal_moves.append((wall[1], wall[0]))
             
+        for wall in ONE_WAY_WALLS:
+            illegal_moves.append((wall[0], wall[1]))
+                    
+    
         if self.debug_mode: print("# illegal moves:", len(illegal_moves))   
 
         for illegal_move in illegal_moves:
@@ -105,6 +122,8 @@ class grid_world():
     
     """
     Epsilon-Greedy Policy 
+    low epsilon - higher chance of exploitation 
+    high epsilon - higher chance of exploration 
     """
     def decay_eps_greedy(self, eps, all_actions, best_actions): 
         if np.random.uniform() > eps:
