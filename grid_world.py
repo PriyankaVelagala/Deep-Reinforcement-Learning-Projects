@@ -17,7 +17,7 @@ sns.set()
 """
 Obstacles 
 """
-BIDIRECTIONAL_WALLS = [(4,5), (18,24), (17,23), (30,31)] 
+BIDIRECTIONAL_WALLS = [(4,5), (18,24), (30,31)] 
 ONE_WAY_WALLS = [(7,1), (6, 12) ]
 ONE_WAY_TUNNELS = [(6,30), (7,5)]
 
@@ -28,7 +28,7 @@ DEFAULT_REWARD = -1
 REWARD = 100
 REWARD_LOC = [5, 13, 16, 32]
 PENALTY = -100
-PENALTY_LOC = [8, 13, 26, 30, 34] 
+PENALTY_LOC = [8, 17, 26, 30, 34] 
 DST_REWARD = 1000 
 START = 0 
 DST = 35
