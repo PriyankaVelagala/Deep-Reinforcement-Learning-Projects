@@ -40,7 +40,6 @@ class grid_world():
         self.debug_mode = logger
         self.S = list(range(0,36))
         self.A = list(range(0,36))
-        #self.walls =  [(4,5),  (18,24), (17,23), (30,31)] #[(3,4), (3,9), (4,5), (11,17), (17,23), (12,18), (18,24), (30,31), (27,33)]
         self.legal_moves = self.get_legal_moves()
         self.R = self.initialize_rewards()
         self.Q = np.zeros(self.R.shape)
@@ -253,8 +252,8 @@ class grid_world():
                     steps_per_episode.append(step)
     
         print(f"time elapsed for {num_episodes} episodes : {time.time()-time_start} s")
-        print("Path: ", path)
-        print("Rewards: ", final_rewards)
+        if self.debug_mode: print("Path: ", path)
+        if self.debug_mode: print("Rewards: ", final_rewards)
             
         return rewards_per_episode, steps_per_episode, found_flag, self.Q
     
