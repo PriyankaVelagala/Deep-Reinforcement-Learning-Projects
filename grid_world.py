@@ -138,15 +138,12 @@ class grid_world():
     """
     Softmax Policy 
     """
-    def softmax(self, current_state, actions, current_step, max_steps):
+    def softmax(self, current_state, actions, T):
         if self.debug_mode:
             for action in actions:
                 print(f'Q[{current_state},{action}] = {self.Q[current_state,action]}')
-        
-        # As steps increase, T decreases and the probability of selecting 
-        # the best action by Q value increases
-        T = max_steps - current_step
-        probabilities = np.array([self.Q[current_state,a]/T for a in actions])
+
+        probabilities = np.array([self.Q[current_state, a]/T for a in actions])
         if self.debug_mode: print(f'probabilities = {probabilities}')
     
         softmax_probabilities = np.exp(probabilities)/ np.sum(np.exp(probabilities))
@@ -166,8 +163,7 @@ class grid_world():
     """
     Q-learning algo 
     """
-    def run_q_learning(self, num_episodes, steps, alpha, gamma, policy, policy_args = {}):
-        print(policy)
+    def run_q_learning(self, num_episodes, steps, alpha, gamma, policy, policy_args={}):
         time_start = time.time()
         
         #reset Q 
@@ -186,10 +182,15 @@ class grid_world():
             eps_start = policy_args.pop('eps_start')
             eps_end = policy_args.pop('eps_end')     
             eps = np.linspace(eps_start, eps_end, steps)
+
+
     
         for i in range(num_episodes):    
             # Initialize State
             s = 0 #np.random.choice(36) #0
+
+            if policy == 'softmax':
+                T = policy_args['T']
             
             total_reward = 0
     
@@ -203,13 +204,14 @@ class grid_world():
                 if policy == 'eps_greedy' or policy == 'eps_greedy_decay': 
                     best_actions = available_actions[np.where(q_values == np.max(q_values))[0]]
                     if self.debug_mode: print(f"Currently at {s}. best actions: {best_actions}. Step: {step}")
-                
-                    #best_actions_q_values = [Q[s,x] for x in best_actions]
                     
                     a = self.decay_eps_greedy(eps[step], available_actions, best_actions)
                     if self.debug_mode : print(f"choose: {a}")
+
                 elif policy == 'softmax':
-                    a = self.softmax(s, available_actions, step, steps)
+                    a = self.softmax(s, available_actions, T)
+                    # T decay
+                    T = T * 0.99
                 
                 r = self.R[s,a]
                 
