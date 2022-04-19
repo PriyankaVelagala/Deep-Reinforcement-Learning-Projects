@@ -182,16 +182,14 @@ class grid_world():
             eps_start = policy_args.pop('eps_start')
             eps_end = policy_args.pop('eps_end')     
             eps = np.linspace(eps_start, eps_end, steps)
-
+        elif policy == 'softmax':
+            T = policy_args['T']
 
     
         for i in range(num_episodes):    
             # Initialize State
             s = 0 #np.random.choice(36) #0
 
-            if policy == 'softmax':
-                T = policy_args['T']
-            
             total_reward = 0
     
             if i%100 == 0 and self.debug_mode:
