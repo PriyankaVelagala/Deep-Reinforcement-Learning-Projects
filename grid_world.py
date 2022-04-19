@@ -17,7 +17,7 @@ sns.set()
 """
 Obstacles 
 """
-BIDIRECTIONAL_WALLS = [(4,5), (18,24), (30,31)] 
+BIDIRECTIONAL_WALLS = [(4,5), (17,23), (18,24), (30,31)]
 ONE_WAY_WALLS = [(7,1), (6, 12) ]
 ONE_WAY_TUNNELS = [(6,30), (7,5)]
 
@@ -209,7 +209,8 @@ class grid_world():
                 elif policy == 'softmax':
                     a = self.softmax(s, available_actions, T)
                     # T decay
-                    T = T * 0.99
+                    if T > 1:
+                        T = T -1
                 
                 r = self.R[s,a]
                 
